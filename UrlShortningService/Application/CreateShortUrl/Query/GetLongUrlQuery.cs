@@ -4,6 +4,7 @@
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
     using UrlShortningService.Data;
+    using UrlShortningService.Domain.Models;
     using UrlShortningService.Dto;
     using UrlShortningService.Services.Interfaces;
 
@@ -39,17 +40,32 @@
                     _logger.LogWarning("Invalid ShortUrl provided: {ShortUrl}", request.ShortUrl);
                     return Result<string>.Failure(requestTime, "Invalid ShortUrl", StatusCodes.Status400BadRequest);
                 }
+                var urlMapping = new UrlMap();
 
                 // Check cache first
                 var cachedLongUrl = await _cacheService.GetAsync(request.ShortUrl);
                 if (cachedLongUrl != null)
                 {
+                    urlMapping = await _context.UrlMappings
+                    .FirstOrDefaultAsync(u => u.ShortUrl == request.ShortUrl, cancellationToken);
+
+                    if (urlMapping == null)
+                    {
+                        _logger.LogWarning("Short URL not found: {ShortUrl}", request.ShortUrl);
+                        return Result<string>.Failure(requestTime, "Short URL not found", StatusCodes.Status404NotFound);
+                    }
+
+                    urlMapping.AccessCount++;
+
+                    // Save the changes to the database
+                    await _context.SaveChangesAsync(cancellationToken);
+
                     _logger.LogInformation("Returning cached LongUrl for ShortUrl: {ShortUrl}", request.ShortUrl);
                     return Result<string>.Success(requestTime, cachedLongUrl, StatusCodes.Status200OK, "Long URL retrieved from cache");
                 }
 
                 // Retrieve the URL mapping from database if not found in cache
-                var urlMapping = await _context.UrlMappings
+                urlMapping = await _context.UrlMappings
                     .FirstOrDefaultAsync(u => u.ShortUrl == request.ShortUrl, cancellationToken);
 
                 if (urlMapping == null)
