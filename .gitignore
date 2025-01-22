@@ -1,0 +1,9 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/UrlShortningService/bin/Debug/net8.0
+/UrlShortningService/obj
+/obj
+/.vs
+/UrlShorteningService/UrlShortningService/obj
